@@ -3,8 +3,8 @@ package lain.mods.skins;
 import lain.mods.skins.api.ISkin;
 import lain.mods.skins.api.ISkinProviderService;
 import lain.mods.skins.api.SkinProviderAPI;
-import lain.mods.skins.providers.CrafatarCachedCapeProvider;
-import lain.mods.skins.providers.CrafatarCachedSkinProvider;
+import lain.mods.skins.providers.CustomCachedCapeProvider;
+import lain.mods.skins.providers.CustomCachedSkinProvider;
 import lain.mods.skins.providers.MojangCachedCapeProvider;
 import lain.mods.skins.providers.MojangCachedSkinProvider;
 import lain.mods.skins.providers.UserManagedCapeProvider;
@@ -132,21 +132,41 @@ public class OfflineSkins
         if (event.getSide().isClient())
         {
             Configuration config = new Configuration(event.getSuggestedConfigurationFile());
-            boolean useCrafatar = config.get(Configuration.CATEGORY_CLIENT, "useCrafatar", true).getBoolean(true);
+            boolean useCrafatar = config.getBoolean("useCrafatar", Configuration.CATEGORY_CLIENT, true, "Use Crafatar skin cache.");
+            String useCustomSkin = config.getString("useCustomSkin", Configuration.CATEGORY_CLIENT, "http://106.245.251.91:11280/skins/%s.png", "Use custom skin url. ex) http://test.com/skin_%s.png");
+            String useCustomCape = config.getString("useCustomCape", Configuration.CATEGORY_CLIENT, "http://106.245.251.91:11280/capes/%s.png", "Use custom cape url. ex) http://test.com/cape_%s.png");
+            String skinPriority = config.getString("skinPriority", Configuration.CATEGORY_CLIENT, "local, custom, crafatar, mojang", "Priority of skin repository.");
             if (config.hasChanged())
                 config.save();
+
+            String priorList[] = skinPriority.toLowerCase().split("[\\s,.]+");
 
             skinService = SkinProviderAPI.createService();
             capeService = SkinProviderAPI.createService();
 
-            skinService.register(new MojangCachedSkinProvider());
-            skinService.register(new UserManagedSkinProvider());
-            if (useCrafatar)
-                skinService.register(new CrafatarCachedSkinProvider());
-            capeService.register(new MojangCachedCapeProvider());
-            capeService.register(new UserManagedCapeProvider());
-            if (useCrafatar)
-                capeService.register(new CrafatarCachedCapeProvider());
+            for (String s : priorList) {
+                if (s.equals("local")) {
+                    skinService.register(new UserManagedSkinProvider());
+                    capeService.register(new UserManagedCapeProvider());
+                } else
+                if (s.equals("custom")) {
+                    if (useCustomSkin.length() > 5)
+                        skinService.register(new CustomCachedSkinProvider(useCustomSkin));
+                    if (useCustomCape.length() > 5)
+                        skinService.register(new CustomCachedCapeProvider(useCustomCape));
+                } else
+                if (s.equals("crafatar")) {
+                    if (useCrafatar) {
+                        skinService.register(new CustomCachedSkinProvider("https://crafatar.com/skins/%s"));
+                        capeService.register(new CustomCachedCapeProvider("https://crafatar.com/capes/%s"));
+                    }
+                } else
+                if (s.equals("mojang")) {
+                    skinService.register(new MojangCachedSkinProvider());
+                    capeService.register(new MojangCachedCapeProvider());
+                }
+            }
+            
 
             MinecraftForge.EVENT_BUS.register(this);
         }

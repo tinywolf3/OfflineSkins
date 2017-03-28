@@ -19,20 +19,22 @@ import org.apache.commons.lang3.StringUtils;
 import com.google.common.base.Strings;
 import com.mojang.authlib.GameProfile;
 
-public class CrafatarCachedSkinProvider implements ISkinProvider
+public class CustomCachedSkinProvider implements ISkinProvider
 {
 
     private File _workDir;
+    private String _customURL;
 
-    public CrafatarCachedSkinProvider()
+    public CustomCachedSkinProvider(String url)
     {
         File file1 = new File(Minecraft.getMinecraft().mcDataDir, "cachedImages");
         if (!file1.exists())
             file1.mkdirs();
-        File file2 = new File(file1, "crafatar");
+        File file2 = new File(file1, "custom");
         if (!file2.exists())
             file2.mkdirs();
         prepareWorkDir(_workDir = new File(file2, "skins"));
+        _customURL = url;
     }
 
     @Override
@@ -50,24 +52,24 @@ public class CrafatarCachedSkinProvider implements ISkinProvider
                 UUID uuid = data.profile.getId();
                 String name = data.profile.getName();
 
-                if (!Shared.isOfflineProfile(data.profile))
+                if (!StringUtils.isBlank(name))
                 {
                     for (int n = 0; n < 5; n++)
                         try
                         {
-                            if ((image = readImageCached(_workDir, uuid.toString(), new URL(String.format("https://crafatar.com/skins/%s", uuid)), Minecraft.getMinecraft().getProxy())) != null)
+                            if ((image = readImageCached(_workDir, name, new URL(String.format(_customURL, name)), Minecraft.getMinecraft().getProxy())) != null)
                                 break;
                         }
                         catch (IOException e)
                         {
                         }
                 }
-                if (image == null && !StringUtils.isBlank(name))
+                if (image == null && !Shared.isOfflineProfile(data.profile))
                 {
                     for (int n = 0; n < 5; n++)
                         try
                         {
-                            if ((image = readImageCached(_workDir, name, new URL(String.format("https://crafatar.com/skins/%s", name)), Minecraft.getMinecraft().getProxy())) != null)
+                            if ((image = readImageCached(_workDir, uuid.toString(), new URL(String.format(_customURL, uuid)), Minecraft.getMinecraft().getProxy())) != null)
                                 break;
                         }
                         catch (IOException e)
@@ -217,7 +219,7 @@ public class CrafatarCachedSkinProvider implements ISkinProvider
                     file3.delete();
             }
         }
-        else if (code == 404)
+        else if (code / 100 == 4)
         {
             return Shared.dummy;
         }
